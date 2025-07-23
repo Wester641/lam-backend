@@ -81,17 +81,112 @@ class ProductService(BaseService[Product, ProductCreate, ProductUpdate, ProductR
         return True
     
     def create(self, obj_in: ProductCreate) -> Product:
-        """Создать товар с валидацией"""
-        # Автоматически генерируем slug если не задан
+        """Создать товар с валидацией и поддержкой новых полей"""
+    
         create_data = obj_in.dict()
         if not create_data.get('slug'):
             create_data['slug'] = slugify(obj_in.title)
         
-        # Создаем новый объект с обновленными данными
         updated_obj = ProductCreate(**create_data)
         
         self.validate_create(updated_obj)
-        return self.repository.create_with_relations(updated_obj)
+        
+        product = self.repository.create_with_relations(updated_obj)
+        
+        if hasattr(obj_in, 'specifications') and obj_in.specifications:
+    
+            spec_images = obj_in.specifications.get('spec_images', [])
+            if spec_images:
+                from app.database.models import Image
+                created_images = []
+                for i, img_url in enumerate(spec_images):
+                
+                    existing_image = self.db.query(Image).filter(Image.url == img_url).first()
+                    if not existing_image:
+                        image = Image(
+                            url=img_url,
+                            alt_text=f"{product.title} - Image {i+1}",
+                            is_primary=(i == 0), 
+                            sort_order=i+1
+                        )
+                        self.db.add(image)
+                        self.db.commit()
+                        self.db.refresh(image)
+                        created_images.append(image)
+                    else:
+                        created_images.append(existing_image)
+                
+                product.images = created_images
+        
+        if hasattr(obj_in, 'tags_names') and obj_in.tags_names:
+            from app.database.models import Tag
+            created_tags = []
+            for tag_name in obj_in.tags_names:
+            
+                existing_tag = self.db.query(Tag).filter(Tag.name == tag_name).first()
+                if not existing_tag:
+                    tag = Tag(
+                        name=tag_name,
+                        slug=slugify(tag_name)
+                    )
+                    self.db.add(tag)
+                    self.db.commit()
+                    self.db.refresh(tag)
+                    created_tags.append(tag)
+                else:
+                    created_tags.append(existing_tag)
+            
+            product.tags = created_tags
+        
+        if hasattr(obj_in, 'colors') and obj_in.colors:
+            from app.database.models import AttributeType, Attribute, ProductVariant
+            
+            color_attr_type = self.db.query(AttributeType).filter(
+                AttributeType.name == "Color"
+            ).first()
+            
+            if not color_attr_type:
+                color_attr_type = AttributeType(
+                    name="Color",
+                    slug="color",
+                    input_type="select"
+                )
+                self.db.add(color_attr_type)
+                self.db.commit()
+                self.db.refresh(color_attr_type)
+            
+            for color in obj_in.colors:
+                existing_color = self.db.query(Attribute).filter(
+                    and_(
+                        Attribute.attribute_type_id == color_attr_type.id,
+                        Attribute.value == color
+                    )
+                ).first()
+                
+                if not existing_color:
+                    color_attr = Attribute(
+                        attribute_type_id=color_attr_type.id,
+                        value=color,
+                        slug=slugify(color)
+                    )
+                    self.db.add(color_attr)
+                    self.db.commit()
+                    self.db.refresh(color_attr)
+                else:
+                    color_attr = existing_color
+                
+                variant = ProductVariant(
+                    product_id=product.id,
+                    attribute_id=color_attr.id,
+                    price_modifier=0,
+                    stock_quantity=product.total_stock
+                )
+                self.db.add(variant)
+            
+            self.db.commit()
+        
+        self.db.refresh(product)
+        return product
     
     def update(self, id: int, obj_in: ProductUpdate) -> Optional[Product]:
         """Обновить товар с валидацией"""
