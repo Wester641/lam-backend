@@ -82,35 +82,59 @@ class ProductService(BaseService[Product, ProductCreate, ProductUpdate, ProductR
         return True
     
     def create(self, obj_in: ProductCreate) -> Product:
-        """Создать товар с валидацией и поддержкой новых полей"""
+        """Создать товар с валидацией"""
         create_data = obj_in.dict()
+        
         if not create_data.get('slug'):
             create_data['slug'] = slugify(obj_in.title)
         
-        excluded_fields = [
+        excluded_fields = {
+            'tag_ids', 'image_ids',
             'shop_name', 'delivered_by', 'specifications', 
             'colors', 'tags_names', 'rating', 'reviewCount'
-        ]
+        }
+        
+        tag_ids = create_data.get('tag_ids', [])
+        image_ids = create_data.get('image_ids', [])
         
         clean_data = {k: v for k, v in create_data.items() if k not in excluded_fields}
         
-        updated_obj = ProductCreate(**clean_data)
+        self.validate_create(obj_in)
         
-        self.validate_create(updated_obj)
+        from app.database.models import Product
+        db_product = Product(**clean_data)
         
-        product = self.repository.create_with_relations(updated_obj)
+        if tag_ids:
+            from app.database.models import Tag
+            tags = self.db.query(Tag).filter(Tag.id.in_(tag_ids)).all()
+            db_product.tags = tags
+        
+        if image_ids:
+            from app.database.models import Image
+            images = self.db.query(Image).filter(Image.id.in_(image_ids)).all()
+            db_product.images = images
+        
+        self.db.add(db_product)
+        self.db.commit()
+        self.db.refresh(db_product)
         
         if hasattr(obj_in, 'specifications') and obj_in.specifications:
-            spec_images = obj_in.specifications.get('spec_images', [])
-            if spec_images:
-                from app.database.models import Image
-                created_images = []
-                for i, img_url in enumerate(spec_images):
+            from app.database.models import Image
+            created_images = []
+            
+            all_spec_images = []
+            for key, images_list in obj_in.specifications.items():
+                if isinstance(images_list, list):
+                    all_spec_images.extend(images_list)
+            
+            for i, img_url in enumerate(all_spec_images):
+                if img_url:  # Проверяем что URL не пустой
+                    # Проверяем, есть ли уже такое изображение
                     existing_image = self.db.query(Image).filter(Image.url == img_url).first()
                     if not existing_image:
                         image = Image(
                             url=img_url,
-                            alt_text=f"{product.title} - Image {i+1}",
+                            alt_text=f"{db_product.title} - Spec Image {i+1}",
                             is_primary=(i == 0),  # Первое изображение - основное
                             sort_order=i+1
                         )
@@ -119,31 +143,19 @@ class ProductService(BaseService[Product, ProductCreate, ProductUpdate, ProductR
                         self.db.refresh(image)
                         created_images.append(image)
                     else:
+                        # Если изображение уже есть, но это первое - делаем его главным
+                        if i == 0:
+                            existing_image.is_primary = True
+                            self.db.commit()
                         created_images.append(existing_image)
-                
-                product.images = created_images
-        
-        if hasattr(obj_in, 'tags_names') and obj_in.tags_names:
-            from app.database.models import Tag
-            created_tags = []
-            for tag_name in obj_in.tags_names:
-                existing_tag = self.db.query(Tag).filter(Tag.name == tag_name).first()
-                if not existing_tag:
-                    tag = Tag(
-                        name=tag_name,
-                        slug=slugify(tag_name)
-                    )
-                    self.db.add(tag)
-                    self.db.commit()
-                    self.db.refresh(tag)
-                    created_tags.append(tag)
-                else:
-                    created_tags.append(existing_tag)
             
-            product.tags = created_tags
+            if created_images:
+                existing_images = list(db_product.images) if db_product.images else []
+                db_product.images = existing_images + created_images
         
         if hasattr(obj_in, 'colors') and obj_in.colors:
             from app.database.models import AttributeType, Attribute, ProductVariant
+            from sqlalchemy import and_
             
             color_attr_type = self.db.query(AttributeType).filter(
                 AttributeType.name == "Color"
@@ -180,17 +192,40 @@ class ProductService(BaseService[Product, ProductCreate, ProductUpdate, ProductR
                     color_attr = existing_color
                 
                 variant = ProductVariant(
-                    product_id=product.id,
+                    product_id=db_product.id,
                     attribute_id=color_attr.id,
                     price_modifier=0,
-                    stock_quantity=product.total_stock
+                    stock_quantity=db_product.total_stock
                 )
                 self.db.add(variant)
             
             self.db.commit()
         
-        self.db.refresh(product)
-        return product
+        if hasattr(obj_in, 'tags_names') and obj_in.tags_names:
+            from app.database.models import Tag
+            created_tags = []
+            for tag_name in obj_in.tags_names:
+                existing_tag = self.db.query(Tag).filter(Tag.name == tag_name).first()
+                if not existing_tag:
+                    tag = Tag(
+                        name=tag_name,
+                        slug=slugify(tag_name)
+                    )
+                    self.db.add(tag)
+                    self.db.commit()
+                    self.db.refresh(tag)
+                    created_tags.append(tag)
+                else:
+                    created_tags.append(existing_tag)
+            
+            if created_tags:
+                existing_tags = list(db_product.tags) if db_product.tags else []
+                db_product.tags = existing_tags + created_tags
+        
+        self.db.commit()
+        self.db.refresh(db_product)
+        
+        return db_product
     
     def update(self, id: int, obj_in: ProductUpdate) -> Optional[Product]:
         """Обновить товар с валидацией"""
