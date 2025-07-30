@@ -126,7 +126,7 @@ class Product(Base):
     # Relationships
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
     brand_id = Column(Integer, ForeignKey('brands.id'))
-    shop_id = Column(Integer, ForeignKey('shops.id'))
+    shop_id = Column(Integer, ForeignKey('shops.id'), nullable=True)
     
     # Product status
     is_active = Column(Boolean, default=True)

@@ -108,20 +108,30 @@ class ProductRepository(BaseRepository[Product, ProductCreate, ProductUpdate]):
     
     def create_with_relations(self, obj_in: ProductCreate) -> Product:
         """Создать товар со связанными данными"""
-        # Извлекаем связанные данные
-        tag_ids = obj_in.tag_ids if hasattr(obj_in, 'tag_ids') else []
-        image_ids = obj_in.image_ids if hasattr(obj_in, 'image_ids') else []
+        tag_ids = getattr(obj_in, 'tag_ids', [])
+        image_ids = getattr(obj_in, 'image_ids', [])
         
-        # Создаем основной объект товара
-        product_data = obj_in.dict(exclude={'tag_ids', 'image_ids'})
+        excluded_fields = {
+            'tag_ids', 'image_ids', 'shop_name', 'delivered_by', 
+            'specifications', 'colors', 'tags_names', 'rating', 'reviewCount'
+        }
+        
+        if hasattr(obj_in, 'dict'):
+            product_data = {k: v for k, v in obj_in.dict().items() if k not in excluded_fields}
+        else:
+            product_data = {}
+            for attr in dir(obj_in):
+                if not attr.startswith('_') and attr not in excluded_fields:
+                    value = getattr(obj_in, attr, None)
+                    if value is not None and not callable(value):
+                        product_data[attr] = value
+        
         db_product = Product(**product_data)
         
-        # Добавляем теги
         if tag_ids:
             tags = self.db.query(Tag).filter(Tag.id.in_(tag_ids)).all()
             db_product.tags = tags
         
-        # Добавляем изображения
         if image_ids:
             images = self.db.query(Image).filter(Image.id.in_(image_ids)).all()
             db_product.images = images

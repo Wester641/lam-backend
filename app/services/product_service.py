@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 from slugify import slugify
 from app.database.models import Product
 from app.repositories.product import ProductRepository
@@ -82,31 +83,35 @@ class ProductService(BaseService[Product, ProductCreate, ProductUpdate, ProductR
     
     def create(self, obj_in: ProductCreate) -> Product:
         """Создать товар с валидацией и поддержкой новых полей"""
-    
         create_data = obj_in.dict()
         if not create_data.get('slug'):
             create_data['slug'] = slugify(obj_in.title)
         
-        updated_obj = ProductCreate(**create_data)
+        excluded_fields = [
+            'shop_name', 'delivered_by', 'specifications', 
+            'colors', 'tags_names', 'rating', 'reviewCount'
+        ]
+        
+        clean_data = {k: v for k, v in create_data.items() if k not in excluded_fields}
+        
+        updated_obj = ProductCreate(**clean_data)
         
         self.validate_create(updated_obj)
         
         product = self.repository.create_with_relations(updated_obj)
         
         if hasattr(obj_in, 'specifications') and obj_in.specifications:
-    
             spec_images = obj_in.specifications.get('spec_images', [])
             if spec_images:
                 from app.database.models import Image
                 created_images = []
                 for i, img_url in enumerate(spec_images):
-                
                     existing_image = self.db.query(Image).filter(Image.url == img_url).first()
                     if not existing_image:
                         image = Image(
                             url=img_url,
                             alt_text=f"{product.title} - Image {i+1}",
-                            is_primary=(i == 0), 
+                            is_primary=(i == 0),  # Первое изображение - основное
                             sort_order=i+1
                         )
                         self.db.add(image)
@@ -122,7 +127,6 @@ class ProductService(BaseService[Product, ProductCreate, ProductUpdate, ProductR
             from app.database.models import Tag
             created_tags = []
             for tag_name in obj_in.tags_names:
-            
                 existing_tag = self.db.query(Tag).filter(Tag.name == tag_name).first()
                 if not existing_tag:
                     tag = Tag(
@@ -196,7 +200,6 @@ class ProductService(BaseService[Product, ProductCreate, ProductUpdate, ProductR
         if not db_obj:
             return None
         
-        # Автоматически обновляем slug если изменилось название
         if obj_in.title and not obj_in.slug:
             obj_in.slug = slugify(obj_in.title)
         
