@@ -1,3 +1,8 @@
 {
-    "git.ignoreLimitWarning": true
+    "workbench.colorCustomizations": {
+        "titleBar.activeBackground": "#ad1669", // Background color when VS Code is focused
+        "titleBar.activeForeground": "#FFFFFF", // Text/icon color when focused
+        "titleBar.inactiveBackground": "#8f1257", // Background color when unfocused
+        "titleBar.inactiveForeground": "#CCCCCC" // Text/icon color when unfocused
+    }
 }
