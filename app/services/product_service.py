@@ -19,18 +19,13 @@ class ProductService(BaseService[Product, ProductCreate, ProductUpdate, ProductR
     
     def validate_create(self, obj_in: ProductCreate) -> bool:
         """Валидация перед созданием товара"""
-        # Проверяем уникальность SKU
-        if self.repository.get_by_sku(obj_in.sku):
+        # Проверяем уникальность SKU (только если задано)
+        if obj_in.sku and self.repository.get_by_sku(obj_in.sku):
             raise ValueError(f"Товар с SKU '{obj_in.sku}' уже существует")
         
         # Проверяем уникальность slug
         if self.repository.get_by_slug(obj_in.slug):
             raise ValueError(f"Товар с slug '{obj_in.slug}' уже существует")
-        
-        # Проверяем существование категории
-        category = self.category_repo.get_by_id(obj_in.category_id)
-        if not category:
-            raise ValueError(f"Категория с ID {obj_in.category_id} не найдена")
         
         # Проверяем существование бренда (если указан)
         if obj_in.brand_id:
@@ -62,12 +57,6 @@ class ProductService(BaseService[Product, ProductCreate, ProductUpdate, ProductR
             existing = self.repository.get_by_slug(obj_in.slug)
             if existing and existing.id != id:
                 raise ValueError(f"Товар с slug '{obj_in.slug}' уже существует")
-        
-        # Проверяем категорию
-        if obj_in.category_id:
-            category = self.category_repo.get_by_id(obj_in.category_id)
-            if not category:
-                raise ValueError(f"Категория с ID {obj_in.category_id} не найдена")
         
         # Проверяем бренд
         if obj_in.brand_id:

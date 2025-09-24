@@ -125,7 +125,7 @@ class ProductBase(BaseModel):
     slug: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     short_description: Optional[str] = None
-    sku: str = Field(..., min_length=1, max_length=50)
+    sku: Optional[str] = Field(None)
     base_price: float = Field(..., gt=0)
     old_price: Optional[float] = Field(None, gt=0)
     stock_state: StockState = StockState.AVAILABLE
@@ -133,7 +133,7 @@ class ProductBase(BaseModel):
     min_order_quantity: int = Field(default=1, ge=1)
     meta_title: Optional[str] = Field(None, max_length=255)
     meta_description: Optional[str] = None
-    category_id: int
+    category_id: Optional[int] = None
     brand_id: Optional[int] = None
     shop_id: Optional[int] = None
     is_active: bool = True
@@ -167,7 +167,7 @@ class ProductUpdate(BaseModel):
     slug: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     short_description: Optional[str] = None
-    sku: Optional[str] = Field(None, min_length=1, max_length=50)
+    sku: Optional[str] = Field(None)
     base_price: Optional[float] = Field(None, gt=0)
     old_price: Optional[float] = Field(None, gt=0)
     stock_state: Optional[StockState] = None
