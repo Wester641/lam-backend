@@ -20,7 +20,7 @@ dependencies = [
     "python-jose (>=3.5.0,<4.0.0)",
     "python-multipart (>=0.0.20,<0.0.21)",
     "aiofiles (>=24.1.0,<25.0.0)",
-    "slugify (>=0.0.1,<0.0.2)"
+    "python-slugify (>=8.0.4,<9.0.0)"
 ]
 
 
