@@ -3,7 +3,6 @@ import json
 
 BASE_URL = "http://localhost:8000"
 
-
 def test_api():
     print("🧪 Тестирование FastAPI эндпоинтов...")
 
