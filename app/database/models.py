@@ -104,27 +104,27 @@ class Product(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
-    slug = Column(String(255), nullable=False, unique=True)
-    description = Column(Text)
-    short_description = Column(Text)
-    sku = Column(String(50), nullable=False, unique=True)
+    slug = Column(String(255), nullable=True, unique=True)
+    description = Column(Text, nullable=True)
+    short_description = Column(Text, nullable=True)
+    sku = Column(String(50), nullable=True, unique=True)
     
     # Basic product info
-    base_price = Column(Float, nullable=False)
-    old_price = Column(Float)
+    base_price = Column(Float, nullable=True)
+    old_price = Column(Float, nullable=True)
     
     # Stock and availability
-    stock_state = Column(String(20), default='Available')  # Available, OutOfStock, Discontinued
-    total_stock = Column(Integer, default=0)
-    min_order_quantity = Column(Integer, default=1)
+    stock_state = Column(String(20), nullable=True, default='Available')  # Available, OutOfStock, Discontinued
+    total_stock = Column(Integer, default=0, nullable=True)
+    min_order_quantity = Column(Integer, default=1, nullable=True)
     
     # SEO and metadata
-    meta_title = Column(String(255))
-    meta_description = Column(Text)
+    meta_title = Column(String(255), nullable=True)
+    meta_description = Column(Text, nullable=True)
     
     # Relationships
-    category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
-    brand_id = Column(Integer, ForeignKey('brands.id'))
+    category_id = Column(Integer, ForeignKey('categories.id'), nullable=True)
+    brand_id = Column(Integer, ForeignKey('brands.id'), nullable=True)
     shop_id = Column(Integer, ForeignKey('shops.id'), nullable=True)
     
     # Product status
