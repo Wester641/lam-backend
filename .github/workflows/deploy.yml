@@ -1,4 +1,4 @@
-name: Deploy to Server
+name: Deploy to Server Maks
 
 on:
   push:
@@ -13,17 +13,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
     
-    - name: Deploy to server
-      uses: appleboy/ssh-action@master
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        password: ${{ secrets.SSH_PASSWORD }}
+        port: 22
+        timeout: 60s
+        command_timeout: 30m
         script: |
           cd /root/app
-          
-          docker-compose down
-          
           git pull origin main
           
           cat > .env << EOF
@@ -39,7 +39,27 @@ jobs:
           MAX_FILE_SIZE=5242880
           EOF
           
-          docker-compose build
-          docker-compose up -d
-          
-          docker-compose ps
+          docker compose down 2>/dev/null || true
+          docker compose up -d --build
+          docker exec lnm-backend-api python -c "from app.database import Base, engine; from app.database.models import *; Base.metadata.create_all(bind=engine)"
+          docker compose ps
+          docker compose logs --tail=20
+    
+    - name: Wait for services
+      run: sleep 30
+    
+    - name: Notify on Success
+      if: success()
+      run: |
+        curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+          -d "chat_id=${{ secrets.GROUP_ID }}" \
+          -d "text=✅ Деплой успешно завершен!" \
+          -d "parse_mode=HTML"
+    
+    - name: Notify on Failure
+      if: failure()
+      run: |
+        curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+          -d "chat_id=${{ secrets.GROUP_ID }}" \
+          -d "text=❌ Деплой провалился!%0AПроверьте логи GitHub Actions%0AРепозиторий: ${{ github.repository }}" \
+          -d "parse_mode=HTML"
