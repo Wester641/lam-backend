@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     make \
     curl \
     libssl1.1 \
+    libpq-dev \
+    gcc \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -35,6 +37,8 @@ ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     libssl1.1 \
+    libpq5 \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -43,6 +47,8 @@ WORKDIR /opt/app
 COPY --from=dependencies /usr/local /usr/local
 
 COPY app ./app
+
+RUN mkdir -p /opt/app/uploads && chmod 755 /opt/app/uploads
 
 EXPOSE 8000
 

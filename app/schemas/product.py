@@ -197,7 +197,7 @@ class ProductResponse(ProductBase, BaseSchema):
     slug: str
     created_at: datetime
     updated_at: datetime
-    category: CategoryResponse
+    category: Optional[CategoryResponse] = None
     brand: Optional[BrandResponse] = None
     shop: Optional[ShopResponse] = None
     tags: List[TagResponse] = []

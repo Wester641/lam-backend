@@ -27,23 +27,44 @@ jobs:
           git pull origin main
           
           cat > .env << EOF
-          DATABASE_URL=sqlite:///ecommerce.db
+          # Database Configuration
+          POSTGRES_USER=ecommerce_user
+          POSTGRES_PASSWORD=ecommerce_password123
+          POSTGRES_DB=ecommerce_db
+          
+          # Application Configuration
           APP_NAME=lnm-backend
           APP_VERSION=1.0.0
           DEBUG=False
+          
+          # Security
           SECRET_KEY=${{ secrets.SECRET_KEY }}
           ALGORITHM=HS256
           ACCESS_TOKEN_EXPIRE_MINUTES=30
+          
+          # CORS
           ALLOWED_ORIGINS=["http://localhost:3000","http://${{ secrets.SSH_HOST }}:3000"]
+          
+          # File Upload
           UPLOAD_DIR=uploads
           MAX_FILE_SIZE=5242880
+          
+          # Database URL
+          DATABASE_URL=postgresql://ecommerce_user:ecommerce_password123@db:5432/ecommerce_db
           EOF
           
-          docker compose down 2>/dev/null || true
+          docker compose down
           docker compose up -d --build
-          docker exec lnm-backend-api python -c "from app.database import Base, engine; from app.database.models import *; Base.metadata.create_all(bind=engine)"
+          
+          echo "Waiting for database to be ready..."
+          sleep 15
+          
+          docker compose exec -T db pg_isready -U ecommerce_user -d ecommerce_db
+          
+          docker compose exec -T api alembic upgrade head
+          
           docker compose ps
-          docker compose logs --tail=20
+          docker compose logs --tail=50
     
     - name: Wait for services
       run: sleep 30
@@ -53,7 +74,7 @@ jobs:
       run: |
         curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
           -d "chat_id=${{ secrets.GROUP_ID }}" \
-          -d "text=✅ Деплой успешно завершен!" \
+          -d "text=✅ Деплой успешно завершен!%0A🗄️ PostgreSQL запущен%0A🚀 API готов к работе%0A📊 Миграции применены" \
           -d "parse_mode=HTML"
     
     - name: Notify on Failure
