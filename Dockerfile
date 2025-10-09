@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libssl1.1 \
     libpq-dev \
     gcc \
+    postgresql-client \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -39,6 +40,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libssl1.1 \
     libpq5 \
     curl \
+    postgresql-client \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -48,8 +50,13 @@ COPY --from=dependencies /usr/local /usr/local
 
 COPY app ./app
 
+COPY alembic.ini ./alembic.ini
+COPY entrypoint.sh ./entrypoint.sh
+
 RUN mkdir -p /opt/app/uploads && chmod 755 /opt/app/uploads
+
+RUN chmod +x /opt/app/entrypoint.sh
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/opt/app/entrypoint.sh"]

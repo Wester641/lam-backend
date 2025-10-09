@@ -29,6 +29,12 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-ecommerce_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ecommerce_password123}
+      - POSTGRES_DB=${POSTGRES_DB:-ecommerce_db}
+      
       - DATABASE_URL=postgresql://${POSTGRES_USER:-ecommerce_user}:${POSTGRES_PASSWORD:-ecommerce_password123}@db:5432/${POSTGRES_DB:-ecommerce_db}
       - APP_NAME=${APP_NAME:-lnm-backend}
       - APP_VERSION=${APP_VERSION:-1.0.0}
