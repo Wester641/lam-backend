@@ -141,7 +141,7 @@ class Product(Base):
     shop = relationship("Shop", back_populates="products")
     tags = relationship("Tag", secondary=product_tags, back_populates="products")
     images = relationship("Image", secondary=product_images, back_populates="products")
-    variants = relationship("ProductVariant", back_populates="product")
+    variants = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="product")
 
 class ProductVariant(Base):
