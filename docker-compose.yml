@@ -59,6 +59,7 @@ services:
       start_period: 40s
     networks:
       - lnm-network
+      
 
 volumes:
   postgres_data:
